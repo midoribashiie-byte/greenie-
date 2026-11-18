@@ -1,0 +1,942 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>勉強スケジュール帳</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;family=Zen+Maru+Gothic:wght@500;700&amp;display=swap">
+<style>
+/* Layout: one column. Student screen = header, day tabs, now card, time-scaled timeline per コマ (1分 = 同じ高さ), week summary. Teacher tabs add progress, weekly records with evaluation, and a schedule editor. */
+:root {
+  --bg: #F3F5F8;
+  --surface: #FFFFFF;
+  --surface2: #E6EBF1;
+  --fg: #16202B;
+  --muted: #566371;
+  --line: #D6DDE5;
+  --accent: #16202B;
+  --on-accent: #FFFFFF;
+  --now: #A44A07;
+  --now-bg: #FFF1DC;
+  --danger: #B42318;
+  --math: #1D4ED8; --math-bg: #DBEAFE; --math-ink: #1E3A8A;
+  --sci: #15803D;  --sci-bg: #DCFCE7;  --sci-ink: #14532D;
+  --jpn: #B91C1C;  --jpn-bg: #FEE2E2;  --jpn-ink: #7F1D1D;
+  --calc: #7E22CE; --calc-bg: #F3E8FF; --calc-ink: #581C87;
+  --soc: #0F766E;  --soc-bg: #CCFBF1;  --soc-ink: #134E4A;
+  --eng: #A16207;  --eng-bg: #FEF3C7;  --eng-ink: #713F12;
+  --mth: #BE185D;  --mth-bg: #FCE7F3;  --mth-ink: #831843;
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Noto Sans JP", sans-serif;
+  --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1318; --surface: #161D25; --surface2: #222C37; --fg: #E7ECF1; --muted: #9BA8B5; --line: #2B3642;
+    --accent: #E7ECF1; --on-accent: #0E1318; --now: #F5B14C; --now-bg: #2B2012; --danger: #FF8A80;
+    --math: #3461D6; --math-bg: #1A2745; --math-ink: #BFD2FF;
+    --sci: #1B7F43;  --sci-bg: #143222;  --sci-ink: #B4EBC8;
+    --jpn: #C73535;  --jpn-bg: #3A1A1C;  --jpn-ink: #FFC2C2;
+    --calc: #8B3FD9; --calc-bg: #2D1B45; --calc-ink: #E2C8FF;
+    --soc: #12857B;  --soc-bg: #0F2E2B;  --soc-ink: #A7F0E6;
+    --eng: #A8650B;  --eng-bg: #33260A;  --eng-ink: #FDE68A;
+    --mth: #C03A7B;  --mth-bg: #3A1A2B;  --mth-ink: #FBCFE8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1318; --surface: #161D25; --surface2: #222C37; --fg: #E7ECF1; --muted: #9BA8B5; --line: #2B3642;
+  --accent: #E7ECF1; --on-accent: #0E1318; --now: #F5B14C; --now-bg: #2B2012; --danger: #FF8A80;
+  --math: #3461D6; --math-bg: #1A2745; --math-ink: #BFD2FF;
+  --sci: #1B7F43;  --sci-bg: #143222;  --sci-ink: #B4EBC8;
+  --jpn: #C73535;  --jpn-bg: #3A1A1C;  --jpn-ink: #FFC2C2;
+  --calc: #8B3FD9; --calc-bg: #2D1B45; --calc-ink: #E2C8FF;
+  --soc: #12857B;  --soc-bg: #0F2E2B;  --soc-ink: #A7F0E6;
+  --eng: #A8650B;  --eng-bg: #33260A;  --eng-ink: #FDE68A;
+  --mth: #C03A7B;  --mth-bg: #3A1A2B;  --mth-ink: #FBCFE8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  font-variant-numeric: tabular-nums;
+}
+.app { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+.loading, .empty { margin: 0; padding: 28px 16px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); text-align: center; }
+
+.s-math { --c: var(--math); --cbg: var(--math-bg); --ci: var(--math-ink); }
+.s-sci  { --c: var(--sci);  --cbg: var(--sci-bg);  --ci: var(--sci-ink); }
+.s-jpn  { --c: var(--jpn);  --cbg: var(--jpn-bg);  --ci: var(--jpn-ink); }
+.s-calc { --c: var(--calc); --cbg: var(--calc-bg); --ci: var(--calc-ink); }
+.s-soc  { --c: var(--soc);  --cbg: var(--soc-bg);  --ci: var(--soc-ink); }
+.s-eng  { --c: var(--eng);  --cbg: var(--eng-bg);  --ci: var(--eng-ink); }
+.s-mth  { --c: var(--mth);  --cbg: var(--mth-bg);  --ci: var(--mth-ink); }
+
+/* teacher tabs */
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--surface2); border-radius: 14px; }
+.tabs button { border: 0; background: transparent; border-radius: 10px; min-height: 44px; padding: 4px 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.tabs button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+/* header */
+.head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.head > div { min-width: 0; }
+.eyebrow { margin: 0; font-size: 14px; color: var(--muted); letter-spacing: .06em; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 30px; line-height: 1.25; text-wrap: balance; }
+.ring { position: relative; width: 68px; height: 68px; flex: none; }
+.ring svg { display: block; transform: rotate(-90deg); }
+.ring .trk { stroke: var(--surface2); }
+.ring .val { stroke: var(--accent); transition: stroke-dasharray .4s ease; }
+.ring .cnt { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; font-weight: 700; font-size: 15px; line-height: 1.1; }
+.ring .cnt small { display: block; font-size: 10px; font-weight: 500; color: var(--muted); }
+
+/* day tabs */
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.day { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 8px 2px 7px; min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.day .dw { font-size: 13px; font-weight: 700; }
+.day .dn { font-size: 12px; color: var(--muted); }
+.day .df { font-size: 11px; font-weight: 700; color: var(--muted); }
+.day[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.day[aria-pressed="true"] .dn, .day[aria-pressed="true"] .df { color: var(--on-accent); opacity: .8; }
+.day.full .df { text-decoration: underline; text-underline-offset: 2px; }
+.day .tdy { font-size: 10px; font-weight: 700; color: var(--now); line-height: 1.2; }
+.day[aria-pressed="true"] .tdy { color: var(--on-accent); }
+
+/* teacher message card */
+.voice { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; align-items: center; }
+.voice .gr { grid-row: 1 / span 2; font-family: var(--font-display); font-size: 34px; line-height: 1; }
+.voice b { font-size: 13px; color: var(--muted); font-weight: 500; }
+.voice p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* now card */
+.hero { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.hero-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--now-bg); color: var(--now); border: 1px solid var(--now); }
+.badge.plain { background: var(--surface2); color: var(--muted); border-color: var(--line); }
+.chip { font-size: 13px; font-weight: 700; padding: 2px 12px; border-radius: 999px; background: var(--c); color: #fff; }
+.hero h2 { margin: 0; font-family: var(--font-display); font-size: 26px; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+.hero .range { margin: 0; color: var(--muted); font-size: 14px; }
+.remain { display: flex; align-items: baseline; gap: 6px; font-size: 15px; }
+.remain strong { font-family: var(--font-display); font-size: 40px; line-height: 1; }
+.bar { height: 10px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--c, var(--accent)); border-radius: 999px; transition: width .4s ease; }
+.hero .note { margin: 0; font-size: 14px; color: var(--muted); }
+.hero.plain h2 { font-size: 22px; }
+
+/* timeline: height is proportional to minutes */
+.komas { display: flex; flex-direction: column; gap: 22px; }
+.koma h3 { margin: 0 0 8px; display: flex; align-items: baseline; gap: 10px; font-family: var(--font-display); font-size: 17px; }
+.koma h3 span { font-family: var(--font-body); font-size: 13px; font-weight: 400; color: var(--muted); }
+.tl { position: relative; display: grid; grid-template-rows: repeat(var(--rows, 6), var(--slot)); }
+.slot.hr { border-top-style: solid; }
+.slot.hr .lab { font-weight: 700; color: var(--fg); }
+.slot.q { border-top-style: dotted; }
+.slot { display: flex; align-items: flex-start; width: 100%; margin: 0; padding: 0; border: 0; border-top: 1px dashed var(--line); background: transparent; color: var(--muted); font-size: 12px; text-align: left; }
+.slot .lab { width: 52px; flex: none; padding-top: 2px; }
+button.slot:hover { background: var(--surface2); }
+button.slot:hover::after { content: "＋ ここに追加"; padding: 2px 0 0 8px; color: var(--fg); }
+.tl::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px dashed var(--line); pointer-events: none; }
+.blocks { position: absolute; left: 52px; right: 0; top: 0; bottom: 0; pointer-events: none; }
+.task { position: absolute; left: 0; right: 0; pointer-events: auto; display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 6px; margin: 0; padding: 2px 4px 2px 12px; border: 0; border-radius: 10px; background: var(--cbg); color: var(--ci); overflow: hidden; text-align: left; }
+.task.edit { grid-template-columns: minmax(0, 1fr); }
+.task.tall { align-items: start; padding-top: 8px; }
+.task .tx { min-width: 0; display: flex; flex-direction: column; }
+.task .l1 { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
+.task .subj { font-weight: 700; font-size: 15px; flex: none; }
+.task .lb { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.task .mins { font-size: 12px; opacity: .85; flex: none; }
+.task .l2 { font-size: 12px; opacity: .85; }
+.task .tag { flex: none; font-size: 11px; font-weight: 700; padding: 0 8px; border-radius: 999px; border: 1px solid currentColor; }
+.task.lesson { background: var(--c); color: #fff; }
+.task.now { outline: 3px solid var(--now); outline-offset: 1px; z-index: 2; }
+.task.sel { outline: 3px solid var(--fg); outline-offset: 1px; z-index: 2; }
+.task.done .tx { opacity: .55; }
+.task.done .subj, .task.done .lb { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.chk { width: 44px; height: 44px; border-radius: 50%; border: 2px solid currentColor; background: transparent; display: grid; place-items: center; padding: 0; }
+.chk svg { width: 22px; height: 22px; opacity: 0; }
+.chk:disabled { cursor: default; opacity: .6; }
+.chk[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chk[aria-pressed="true"] svg { opacity: 1; }
+.task.lesson .chk { color: #fff; }
+.task.lesson .chk[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--c); }
+.nowline { position: absolute; left: 44px; right: 0; border-top: 2px solid var(--now); z-index: 3; pointer-events: none; }
+.nowline::before { content: ""; position: absolute; left: -2px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--now); }
+
+/* panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.panel h2 { margin: 0; font-family: var(--font-display); font-size: 18px; }
+.panel h3 { margin: 0; font-size: 14px; color: var(--muted); font-weight: 500; }
+.subs { display: flex; flex-direction: column; gap: 12px; }
+.sub { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; font-size: 14px; }
+.sub b { font-weight: 700; }
+.sub .bar { height: 12px; }
+.sub span { color: var(--muted); font-size: 13px; text-align: right; min-width: 110px; }
+.hint { margin: 0; font-size: 12px; color: var(--muted); }
+.big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.big strong { font-family: var(--font-display); font-size: 44px; line-height: 1; }
+.big span { color: var(--muted); font-size: 14px; }
+.dgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.dcell { border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.dcell b { font-size: 13px; }
+.dcell .bar { height: 6px; }
+.todo { display: flex; flex-direction: column; gap: 10px; }
+.todo h3 { color: var(--fg); font-weight: 700; display: flex; gap: 8px; align-items: baseline; }
+.todo ul, .dlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.li { display: grid; grid-template-columns: 84px auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 14px; }
+.li .t { color: var(--muted); font-size: 13px; }
+.li .chip { font-size: 12px; padding: 0 10px; }
+.li .ok { font-weight: 700; }
+.li .no { color: var(--muted); }
+.mini { font-size: 11px; font-weight: 700; padding: 0 8px; border-radius: 999px; border: 1px solid currentColor; }
+.late { color: var(--danger); }
+
+/* records */
+.banner { border: 1px solid var(--now); background: var(--now-bg); color: var(--now); border-radius: 14px; padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; font-size: 14px; }
+.banner button { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; min-height: 40px; padding: 4px 16px; font-weight: 700; }
+.wk { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.wk > button { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; width: 100%; text-align: left; border: 0; background: transparent; padding: 14px 16px; min-height: 64px; }
+.wk .r1 { font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wk .r2 { font-size: 13px; color: var(--muted); }
+.wk .gr { font-family: var(--font-display); font-size: 26px; min-width: 30px; text-align: center; }
+.wk .body { padding: 4px 16px 18px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cbtn { min-height: 44px; padding: 4px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-weight: 500; }
+.cbtn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
+.cbtn:disabled { opacity: .4; cursor: not-allowed; }
+.cbtn.s { border-color: var(--c); color: var(--ci); background: var(--cbg); }
+.cbtn.s[aria-pressed="true"] { background: var(--c); color: #fff; border-color: var(--c); }
+textarea, input[type="text"], select { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
+textarea { resize: vertical; min-height: 88px; }
+textarea.code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; min-height: 72px; word-break: break-all; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label, fieldset legend { font-size: 13px; color: var(--muted); font-weight: 500; padding: 0; }
+fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { min-height: 44px; padding: 6px 20px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-weight: 700; }
+.btn.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.dng { color: var(--danger); border-color: var(--danger); }
+.btn.dng.arm { background: var(--danger); color: var(--surface); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.msg { margin: 0; font-size: 14px; }
+.msg.err { color: var(--danger); font-weight: 700; }
+.msg.ok { color: var(--muted); }
+
+@media (max-width: 420px) {
+  h1 { font-size: 26px; }
+  .sub { grid-template-columns: 40px minmax(0, 1fr); }
+  .sub span { grid-column: 1 / -1; text-align: left; margin-top: -6px; }
+  .li { grid-template-columns: 1fr auto; }
+  .li .t { grid-column: 1 / -1; }
+  .row2 { grid-template-columns: 1fr; }
+  .tabs button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring .val, .bar i { transition: none; }
+}
+
+.sbar { display: flex; flex-direction: column; gap: 6px; }
+.stu .r2 b { color: var(--fg); }
+.badge.warn { background: var(--now-bg); color: var(--now); border-color: var(--now); }
+.hint.tm { font-size: 12px; color: var(--muted); }
+.donelist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dl { display: grid; grid-template-columns: 112px auto minmax(0, 1fr); gap: 8px; align-items: center; font-size: 14px; }
+.dl time { font-size: 12px; color: var(--muted); }
+@media (max-width: 420px) { .dl { grid-template-columns: 1fr; gap: 0; } }
+
+.app.wide { max-width: 1180px; }
+.vsw { display: flex; gap: 8px; flex-wrap: wrap; }
+.gwrap { overflow-x: auto; padding-bottom: 4px; }
+.ggrid { --rh: 44px; display: grid; min-width: 960px; gap: 3px; grid-template-columns: 84px 48px repeat(7, minmax(0, 1fr));
+  grid-template-rows: 44px repeat(6, minmax(var(--rh), auto)) 10px repeat(6, minmax(var(--rh), auto)) 10px repeat(6, minmax(var(--rh), auto)); }
+.gh { background: var(--accent); color: var(--on-accent); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; line-height: 1.2; }
+.gh small { font-size: 11px; font-weight: 400; opacity: .85; }
+.gcorner { grid-column: 1 / span 2; grid-row: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); }
+.gk { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.gk b { font-size: 16px; }
+.gk span { font-size: 12px; line-height: 1.4; text-align: center; color: var(--muted); }
+.gt { display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 11px; color: var(--muted); }
+div.gc, button.gc { font: inherit; text-align: left; margin: 0; cursor: pointer; box-sizing: border-box; min-width: 0; padding: 3px 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); background: var(--cbg); color: var(--ci); display: flex; flex-direction: column; justify-content: center; gap: 1px; overflow: hidden; }
+div.gc.lesson, button.gc.lesson { background: var(--c); border-color: var(--c); color: #fff; }
+div.gc.sel, button.gc.sel { outline: 3px solid var(--fg); outline-offset: 1px; }
+.gc .g1 { font-size: 13px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.gc.lg .g1 { font-size: 16px; }
+.gc .g2 { font-size: 11px; line-height: 1.3; opacity: .9; }
+.gc.one { flex-direction: row; align-items: center; gap: 6px; }
+.gc.one .g1 { flex: 1; min-width: 0; font-size: 12px; }
+.gc.one .g2 { flex: none; white-space: nowrap; }
+.gadd { box-sizing: border-box; min-width: 0; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: var(--muted); font-size: 16px; padding: 0; }
+.gadd:hover, .gadd:focus-visible { background: var(--surface2); }
+.gadd.wide { min-height: 44px; font-size: 13px; }
+.gsun { grid-column: 9; grid-row: 2 / -1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.gsun .gc { flex: none; }
+.repbox { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.gc.gwk { position: relative; padding: 0; display: block; }
+.gedit { display: flex; flex-direction: column; justify-content: center; gap: 1px; box-sizing: border-box; width: 100%; height: 100%; margin: 0; font: inherit; color: inherit; background: none; border: 0; text-align: left; padding: 3px 28px 3px 8px; cursor: pointer; }
+.gc.one .gedit { flex-direction: row; align-items: center; gap: 6px; }
+.gc .gedit .g1 { font-size: inherit; }
+.gdel { position: absolute; top: 3px; right: 3px; margin: 0; width: 22px; height: 22px; padding: 0; display: flex; align-items: center; justify-content: center; font: inherit; font-size: 14px; font-weight: 700; line-height: 1; border-radius: 50%; border: 1px solid var(--danger); background: var(--surface); color: var(--danger); cursor: pointer; }
+.gdel.arm { width: auto; min-width: 22px; padding: 0 7px; border-radius: 11px; font-size: 11px; background: var(--danger); color: var(--surface); white-space: nowrap; }
+.dl24 { display: flex; flex-direction: column; gap: 8px; }
+.tk { box-sizing: border-box; width: 100%; margin: 0; font: inherit; text-align: left; border: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 10px; padding: 8px 12px; min-height: 56px; border-radius: 12px; background: var(--cbg); color: var(--ci); cursor: pointer; }
+.tk .tm { font-size: 13px; line-height: 1.3; opacity: .9; }
+.tk .tx { min-width: 0; display: flex; flex-direction: column; }
+.tk .l1 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+.tk .subj { font-weight: 700; font-size: 15px; }
+.tk .lb { font-size: 14px; overflow-wrap: anywhere; }
+.tk .mins { font-size: 12px; opacity: .85; }
+.tk.lesson { background: var(--c); color: #fff; }
+.tk.sel { outline: 3px solid var(--fg); outline-offset: 1px; }
+.w24 { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; min-width: 840px; align-items: start; }
+.wcol { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wcol .gh { min-height: 44px; }
+.wcol .gc { flex: none; min-height: 44px; }
+.fm { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 4px 2px; font-size: 12px; color: var(--muted); }
+.fm.k { margin-top: 6px; border-top: 2px solid var(--fg); color: var(--fg); font-weight: 700; font-size: 14px; }
+.fm.b { margin-left: 12px; border-left: 3px dotted var(--line); padding: 2px 0 2px 8px; font-size: 12px; }
+.wcol .fm { flex-direction: column; align-items: flex-start; gap: 0; font-size: 11px; }
+.wcol .fm.k { font-size: 12px; }
+.wcol .fm.b { margin-left: 4px; }
+.tl24 .slot { font-size: 11px; }
+.fband { position: absolute; left: 52px; right: 0; background: color-mix(in srgb, var(--accent) 8%, transparent); border-left: 3px solid var(--muted); pointer-events: none; }
+.fband span { position: absolute; right: 6px; top: 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.fband.br { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 35%, transparent) 0 3px, transparent 3px 6px); border-left-color: transparent; }
+.fband.br span { display: none; }
+.jt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.jt span { font-size: 12px; color: var(--muted); }
+.jt .cbtn { min-height: 36px; padding: 2px 14px; font-size: 13px; }
+</style>
+
+<main class="app" id="app"><p class="loading">読み込み中…</p></main>
+
+<script>
+(function () {
+  'use strict';
+  var SUBJ = { '算数': 's-math', '理科': 's-sci', '国語': 's-jpn', '計算': 's-calc', '社会': 's-soc', '英語': 's-eng', '数学': 's-mth' };
+  var SUBJ_LIST = ['算数', '数学', '理科', '国語', '英語', '社会', '計算'];
+  var KOMA = { A: { name: 'Aコマ', start: 17 * 60, slots: 6 }, B: { name: 'Bコマ', start: 18 * 60 + 35, slots: 6 }, C: { name: 'Cコマ', start: 20 * 60 + 10, slots: 6 }, F: { name: '日曜日', start: 9 * 60, slots: 52 } };
+  var KOMAS = ['A', 'B', 'C'];
+  KOMA.D = { name: '1日(24時間)', start: 0, slots: 96 };
+  KOMA.E = { name: '1日(24時間)', start: 0, slots: 288, unit: 5 };
+  var PATTERNS = { juken: '中学受験', elem: '小学生', mid: '中学生', high: '高校生' };
+  var NSOK = [1, 2, 3, 4, 6, 8, 9, 10, 12, 16, 18, 24, 30, 36, 48];
+  function pat() { var c = S && S.sid && S.students && S.students[S.sid]; return c && PATTERNS[c.pattern] ? c.pattern : 'juken'; }
+  function is24() { return pat() !== 'juken'; }
+  function komasOf(day) { return is24() ? ['E'] : ((day === 0 || day === 3) ? ['F'] : KOMAS); }
+  function range(n) { var a = []; for (var i = 0; i < n; i++) a.push(i); return a; }
+  var FMARKS = [];
+  var PPM24 = 2.4;
+  var FRAMES = [];
+  function frameDay(day) { return false; }
+  function tl24(list, day, selId) {
+    var ts = list.filter(function (t) { return t.day === day; }), H = 1440 * PPM24;
+    var out = '<div class="koma" id="kz-D"><h3>1日(24時間)<span>0:00〜24:00</span></h3><div class="jt"><span>時間へ移動</span>' + [[0, '0:00'], [360, '6:00'], [720, '12:00'], [960, '16:00'], [1200, '20:00']].map(function (j) { return '<button type="button" class="cbtn" data-jt="' + j[0] + '">' + j[1] + '</button>'; }).join('') + '</div><div class="tl tl24" style="--slot:' + (15 * PPM24) + 'px;--rows:96;height:' + H + 'px">';
+    if (frameDay(day)) FRAMES.forEach(function (f) { out += '<div class="fband' + (f.br ? ' br' : '') + '" style="top:' + (f.a * PPM24) + 'px;height:' + ((f.b - f.a) * PPM24) + 'px"><span>' + f.l + '</span></div>'; });
+    for (var i = 0; i < 96; i++) {
+      var mm = i * 15;
+      out += '<button type="button" class="slot' + (mm % 60 === 0 ? ' hr' : '') + (mm % 30 !== 0 ? ' q' : '') + '" data-sadd="E' + (i * 3) + '" aria-label="' + hm(mm) + 'に予定を追加"><span class="lab">' + (mm % 30 === 0 ? hm(mm) : '') + '</span></button>';
+    }
+    out += '<div class="blocks">' + ts.map(function (t) {
+      return '<button type="button" class="task ' + SUBJ[t.subj] + (t.lesson ? ' lesson' : '') + (t.mins >= 60 ? ' tall' : '') + ' edit' + (selId && selId === t.id ? ' sel' : '') + '" id="tb-' + esc(t.id) + '" data-edit="' + esc(t.id) + '" style="top:' + (t.start * PPM24) + 'px;height:' + Math.max(14, t.mins * PPM24 - 2) + 'px" aria-label="' + esc(t.subj + ' ' + t.label + ' ' + hm(t.start) + 'から' + t.mins + '分を変更') + '"><div class="tx"><div class="l1"><span class="subj">' + esc(t.subj) + '</span><span class="lb">' + esc(t.label) + '</span><span class="mins">' + t.mins + '分</span></div>' + (t.mins >= 30 ? '<div class="l2">' + hm(t.start) + '〜' + hm(t.end) + '</div>' : '') + '</div></button>';
+    }).join('') + '</div></div></div>';
+    return out;
+  }
+  function goMin(min, id) {
+    var el = (id && document.getElementById('tb-' + id)) || document.querySelector('.tl24 .slot[data-sadd="E' + (Math.floor(min / 15) * 3) + '"]');
+    try { if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' }); } catch (x) {}
+  }
+  function fmark(m) { return '<div class="fm ' + m.k + '"><span>' + m.l + '</span><span>' + m.r + '</span></div>'; }
+  function withMarks(ts, fn, day) { var out = '', i = 0; if (day === 0 || day === 3) { ts.forEach(function (t) { out += fn(t); }); return out; } ts.forEach(function (t) { while (i < FMARKS.length && FMARKS[i].at <= t.start) out += fmark(FMARKS[i++]); out += fn(t); }); while (i < FMARKS.length) out += fmark(FMARKS[i++]); return out; }
+  function U(k) { return (KOMA[k] && KOMA[k].unit) || 15; }
+  var DURS_E = [{ n: 1, m: 5 }, { n: 2, m: 10 }, { n: 3, m: 15 }, { n: 6, m: 30 }, { n: 9, m: 45 }, { n: 12, m: 60 }, { n: 18, m: 90 }, { n: 24, m: 120 }, { n: 30, m: 150 }, { n: 36, m: 180 }, { n: 48, m: 240 }];
+  function durList(k) { return k === 'E' ? DURS_E : (k === 'D' ? DURS24 : DURS); }
+  function kstChips(e) { return e.koma === 'E' && e.day !== 0 && e.day !== 3 ? '<fieldset><legend>コマのはじまりに合わせる</legend><div class="chips">' + [['Aコマ', 1020], ['Bコマ', 1115], ['Cコマ', 1210]].map(function (c) { return '<button type="button" class="cbtn" data-kst="' + c[1] + '" aria-pressed="' + (e.s * 5 === c[1]) + '">' + c[0] + ' ' + hm(c[1]) + '</button>'; }).join('') + '</div></fieldset>' : ''; }
+  var DURS24 = [{ n: 1, m: 15 }, { n: 2, m: 30 }, { n: 3, m: 45 }, { n: 4, m: 60 }, { n: 6, m: 90 }, { n: 8, m: 120 }, { n: 10, m: 150 }, { n: 12, m: 180 }, { n: 16, m: 240 }];
+  var DURS = [{ n: 1, m: 15 }, { n: 2, m: 30 }, { n: 3, m: 45 }, { n: 4, m: 60 }, { n: 6, m: 90 }];
+  var QUICK = ['授業', '授業の直し', '先取り', '宿題', '直し', '漢字・語句', '練習', '暗記', '単語', 'まとめ'];
+  var GRADES = [['◎', 'よくできた'], ['○', 'できた'], ['△', 'もうすこし']];
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  var ORDER = [1, 2, 3, 4, 5, 6, 0];
+  var PPM = 3.4;
+  var DEFAULT_URL = 'https://midoribashiie-byte.github.io/greenie1115/';
+  var DEFAULT_TASKS = [[1,"A",0,6,"算数","授業","t01"],[1,"B",0,6,"理科","授業","t02"],[1,"C",0,1,"国語","漢字・語句","t03"],[1,"C",1,1,"計算","練習","t04"],[1,"C",2,2,"算数","授業の直し","t05"],[1,"C",4,2,"理科","授業の直し","t06"],[2,"A",0,4,"算数","宿題","t07"],[2,"A",4,2,"理科","宿題","t08"],[2,"B",0,1,"国語","漢字・語句","t09"],[2,"B",1,4,"国語","宿題","t10"],[2,"B",5,1,"理科","暗記","t11"],[2,"C",0,6,"計算","授業","t12"],[3,"A",0,4,"算数","宿題","t13"],[3,"A",4,2,"計算","授業の直し","t14"],[3,"B",0,1,"国語","漢字・語句","t15"],[3,"B",1,1,"計算","練習","t16"],[3,"B",2,1,"理科","暗記","t17"],[4,"A",0,1,"国語","漢字・語句","t18"],[4,"A",1,1,"計算","練習","t19"],[4,"A",2,1,"理科","暗記","t20"],[5,"A",0,1,"国語","漢字・語句","t21"],[5,"A",1,1,"計算","練習","t22"],[5,"A",2,1,"理科","暗記","t23"],[5,"A",3,3,"算数","宿題","t24"],[5,"B",0,4,"国語","宿題","t25"],[5,"B",4,2,"理科","宿題","t26"],[5,"C",0,3,"算数","直し","t27"],[6,"A",0,6,"国語","授業","t28"],[6,"B",0,3,"国語","授業の直し","t29"],[6,"B",3,2,"算数","宿題","t30"],[6,"B",5,1,"計算","練習","t31"],[6,"C",0,3,"理科","宿題","t32"],[0,"A",0,3,"算数","宿題","t33"],[0,"A",3,3,"国語","宿題","t34"],[0,"B",0,3,"理科","直し","t35"],[6,"C",3,1,"算数","宿題","tmwci8at3b2"]];
+
+  function b64e(str) { var b = new TextEncoder().encode(str), s = ''; for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s); }
+  function b64d(t) { var s = atob(t), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return new TextDecoder().decode(a); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function hm(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+  function dur(m) { var h = Math.floor(m / 60), r = m % 60; return (h ? h + '時間' : '') + (r || !h ? r + '分' : ''); }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function mondayOf(d) { return addDays(d, -((d.getDay() + 6) % 7)); }
+  function parseYmd(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function rangeLabel(key) { var a = parseYmd(key), b = addDays(a, 6); return (a.getMonth() + 1) + '/' + a.getDate() + '〜' + (b.getMonth() + 1) + '/' + b.getDate(); }
+  function okTs(ts) { return typeof ts === 'number' && ts > 1e12; }
+  function fmtDT(ts) { if (!okTs(ts)) return ''; var d = new Date(ts); return (d.getMonth() + 1) + '/' + d.getDate() + '(' + WD[d.getDay()] + ') ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
+  function nowMin() { var n = new Date(); return n.getHours() * 60 + n.getMinutes() + n.getSeconds() / 60; }
+  function todayNum() { return new Date().getDay(); }
+  var memS = {};
+  function lsGet(k) { try { var v = localStorage.getItem('ie-teacher:' + k); if (v != null) return v; } catch (e) {} return memS[k] == null ? null : memS[k]; }
+  function lsSet(k, v) { memS[k] = v; try { localStorage.setItem('ie-teacher:' + k, v); } catch (e) {} }
+
+  function norm(t) {
+    var k = KOMA[t.koma]; if (!k) return null;
+    var koma = t.koma, s = t.s, u = k.unit || 15, st = k.start + s * u;
+    if ((t.day === 0 || t.day === 3) && koma !== 'F' && koma !== 'D' && koma !== 'E') { koma = 'F'; s = Math.round((st - KOMA.F.start) / 15); st = KOMA.F.start + s * 15; }
+    return { id: t.id, day: t.day, koma: koma, s: s, n: t.n, subj: t.subj, label: t.label, start: st, mins: t.n * u, end: st + t.n * u, lesson: t.label === '授業' };
+  }
+  function normList(a) { var o = []; (a || []).forEach(function (t) { var x = norm(t); if (x) o.push(x); }); return o; }
+  function tasksOf(list, d) { return list.filter(function (t) { return t.day === d; }).sort(function (a, b) { return a.start - b.start; }); }
+  function raw(t) { return { id: t.id, day: t.day, koma: t.koma, s: t.s, n: t.n, subj: t.subj, label: t.label }; }
+  function toTask(a) { return { day: a[0], koma: a[1], s: a[2], n: a[3], subj: a[4], label: a[5], id: a[6] }; }
+  function toArr(t) { return [t.day, t.koma, t.s, t.n, t.subj, t.label, t.id]; }
+  function validTasks(arr) {
+    if (!Array.isArray(arr) || arr.length > 300) return null;
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var a = arr[i]; if (!Array.isArray(a) || a.length < 7) return null;
+      var t = toTask(a), k = KOMA[t.koma];
+      if (!k || !(t.day >= 0 && t.day <= 6 && t.day % 1 === 0) || !(t.s >= 0 && t.s % 1 === 0) || NSOK.indexOf(t.n) < 0 || t.s + t.n > k.slots || !SUBJ[t.subj] || typeof t.label !== 'string' || t.label.length > 20 || typeof t.id !== 'string' || !/^[A-Za-z0-9_-]{1,40}$/.test(t.id)) return null;
+      out.push(raw(t));
+    }
+    return out;
+  }
+
+  var S = {
+    db: null, ready: false, unavailable: false, canEdit: false, view: 'list',
+    students: {}, studentsDef: false, weeks: {}, weeksDef: false, evals: {}, appCfg: null,
+    sid: lsGet('sid'), key: ymd(mondayOf(new Date())), eday: new Date().getDay(), editing: null, msg: null, delArm: false, busy: false,
+    openWeek: null, draft: {}, importText: '', importSid: 'auto', newName: '', newFrom: 'tpl', lname: null, rnVal: null, urlVal: null, delStuArm: false, eview: 'day', baseAsk: false, patAsk: false, patVal: null, newPat: 'juken', clearAsk: false, wdel: null, jump: null, rep: { open: false, days: {}, komas: {} }
+  };
+  var app = document.getElementById('app');
+
+  function wid(sid, key) { return sid + '__' + key; }
+  function students() { return Object.keys(S.students).map(function (id) { var s = S.students[id]; return { id: id, name: s.name || '(なまえなし)', sched: s.sched || { v: 0, tasks: [] }, order: s.order || 0, createdAt: s.createdAt || 0, pattern: PATTERNS[s.pattern] ? s.pattern : 'juken' }; }).sort(function (a, b) { return a.order - b.order || (a.name < b.name ? -1 : 1); }); }
+  function cur() { return S.sid && S.students[S.sid] ? { id: S.sid, pattern: PATTERNS[S.students[S.sid].pattern] ? S.students[S.sid].pattern : 'juken', name: S.students[S.sid].name || '', sched: S.students[S.sid].sched || { v: 0, tasks: [] } } : null; }
+  function week(key, sid) { return S.weeks[wid(sid || S.sid, key)] || null; }
+  function isDone(w, id) { return !!(w && w.done && w.done[id]); }
+  function curTasks() { var c = cur(); return normList(c ? c.sched.tasks : []); }
+  function studentUrl() { return ((S.appCfg && S.appCfg.studentUrl) || DEFAULT_URL).split('#')[0]; }
+  function evalOf(sid, key) { return S.evals[wid(sid, key)]; }
+  function hasEval(sid, key) { var e = evalOf(sid, key); return !!(e && (e.grade || e.comment)); }
+
+  function stats(w) {
+    var ts = normList(w.tasks), tot = 0, dn = 0, subj = {}, day = {};
+    ts.forEach(function (t) {
+      var d = isDone(w, t.id); tot += t.mins; if (d) dn += t.mins;
+      var s = subj[t.subj] || (subj[t.subj] = { tot: 0, dn: 0 }); s.tot += t.mins; if (d) s.dn += t.mins;
+      var y = day[t.day] || (day[t.day] = { tot: 0, dn: 0, n: 0, c: 0 }); y.tot += t.mins; y.n++; if (d) { y.dn += t.mins; y.c++; }
+    });
+    return { ts: ts, tot: tot, dn: dn, subj: subj, day: day };
+  }
+
+  function subjBars(st) {
+    var out = '';
+    SUBJ_LIST.forEach(function (s) {
+      var x = st.subj[s]; if (!x) return;
+      out += '<div class="sub ' + SUBJ[s] + '"><b>' + s + '</b><div class="bar" role="img" aria-label="' + s + ' ' + dur(x.dn) + ' / ' + dur(x.tot) + '"><i style="width:' + pct(x.dn, x.tot) + '%"></i></div><span>' + dur(x.dn) + ' / ' + dur(x.tot) + '</span></div>';
+    });
+    return out || '<p class="hint">この週の予定はありません。</p>';
+  }
+  function msgFor(where) { return S.msg && S.msg.where === where ? '<p class="msg ' + S.msg.kind + '" role="status">' + esc(S.msg.text) + '</p>' : ''; }
+
+  /* ---------- schedule editor pieces ---------- */
+  function block(t) {
+    var top = (t.start - KOMA[t.koma].start) * PPM, h = t.mins * PPM - 3;
+    var cls = 'task ' + SUBJ[t.subj] + (t.lesson ? ' lesson' : '') + (t.mins >= 60 ? ' tall' : '') + ' edit' + (S.editing && S.editing.id === t.id ? ' sel' : '');
+    return '<button type="button" class="' + cls + '" data-edit="' + esc(t.id) + '" style="top:' + top + 'px;height:' + h + 'px" aria-label="' + esc(t.subj + ' ' + t.label + ' ' + hm(t.start) + 'から' + t.mins + '分を変更') + '"><div class="tx"><div class="l1"><span class="subj">' + esc(t.subj) + '</span><span class="lb">' + esc(t.label) + '</span><span class="mins">' + t.mins + '分</span></div>' + (t.mins >= 30 ? '<div class="l2">' + hm(t.start) + '〜' + hm(t.end) + '</div>' : '') + '</div></button>';
+  }
+  function elist24(ts, day) {
+    var g = tasksOf(ts, day);
+    return '<div class="dl24" id="kz-D">' + (g.length ? '' : '<p class="empty">この日の予定はありません。下の「予定を追加」から入れます。</p>') + withMarks(g, function (t) {
+      return '<button type="button" class="tk ' + SUBJ[t.subj] + (t.lesson ? ' lesson' : '') + (S.editing && S.editing.id === t.id ? ' sel' : '') + '" data-edit="' + esc(t.id) + '" aria-label="' + esc(t.subj + ' ' + t.label + ' ' + hm(t.start) + 'から' + t.mins + '分を変更') + '"><div class="tm">' + hm(t.start) + '<br>〜' + hm(t.end) + '</div><div class="tx"><div class="l1"><span class="subj">' + esc(t.subj) + '</span><span class="lb">' + esc(t.label) + '</span><span class="mins">' + t.mins + '分</span></div></div></button>';
+    }) + '</div>';
+  }
+  function weekList24(ts) {
+    var out = '<div class="gwrap"><div class="w24" role="group" aria-label="週間時間割">';
+    ORDER.forEach(function (d, i) {
+      out += '<div class="wcol" id="wc-' + d + '"><div class="gh">' + WD[d] + '曜日</div>' + tasksOf(ts, d).map(function (t) { return wcell(t, ' stack', ''); }).join('') + '<button type="button" class="gadd wide" data-wadd="' + d + ':E:-1">＋ 追加</button></div>';
+    });
+    return out + '</div></div>';
+  }
+  function timeline(ts, day) {
+    if (is24()) return tl24(ts, day, S.editing && S.editing.id);
+    var out = '<div class="komas">';
+    komasOf(day).forEach(function (k) {
+      var ks = KOMA[k].start, ns = KOMA[k].slots, len = ns * 15, g = ts.filter(function (t) { return t.day === day && t.koma === k; });
+      out += '<div class="koma" id="kz-' + k + '"><h3>' + KOMA[k].name + '<span>' + hm(ks) + '〜' + hm(ks + len) + '</span></h3><div class="tl" style="--slot:' + (15 * PPM) + 'px;--rows:' + ns + ';height:' + (len * PPM) + 'px">';
+      for (var i = 0; i < ns; i++) {
+        var mm = ks + i * 15, long = k === 'F', lab = (!long || mm % 30 === 0) ? hm(mm) : '';
+        var cl = 'slot' + (long && mm % 60 === 0 ? ' hr' : '') + (long && mm % 30 !== 0 ? ' q' : '');
+        out += '<button type="button" class="' + cl + '" data-add="' + k + i + '" aria-label="' + hm(mm) + 'に予定を追加"><span class="lab">' + lab + '</span></button>';
+      }
+      out += '<div class="blocks">' + g.map(block).join('') + '</div></div></div>';
+    });
+    return out + '</div>';
+  }
+  function dayTabs(ts, selDay) {
+    return '<nav class="days" aria-label="曜日">' + ORDER.map(function (d) {
+      var n = ts.filter(function (t) { return t.day === d; }).length, dt = addDays(parseYmd(S.key), (d + 6) % 7);
+      return '<button type="button" class="day" data-eday="' + d + '" aria-pressed="' + (d === selDay) + '"><span class="dw">' + WD[d] + '</span><span class="dn">' + dt.getDate() + '</span><span class="df">' + n + '件</span></button>';
+    }).join('') + '</nav>';
+  }
+
+  /* ---------- 週間表(ここからも変更できる) ---------- */
+  var ROWBASE = { A: 2, B: 9, C: 16 };
+  function wcell(t, extra, style) {
+    var sel = S.editing && S.editing.id === t.id ? ' sel' : '', ask = S.wdel === t.id;
+    var inner = '<span class="g1">' + esc(t.subj) + ' ' + esc(t.label) + '</span><span class="g2">' + (extra ? hm(t.start) + '〜' + hm(t.end) + ' ・ ' : '') + t.mins + '分</span>';
+    return '<div class="gc gwk ' + SUBJ[t.subj] + (t.lesson ? ' lesson' : '') + (t.mins >= 60 ? ' lg' : '') + (extra || ' one') + sel + '" style="' + style + '"><button type="button" class="gedit" data-edit="' + esc(t.id) + '" aria-label="' + esc(t.subj + ' ' + t.label + ' ' + hm(t.start) + 'を変える') + '">' + inner + '</button>' +
+      '<button type="button" class="gdel' + (ask ? ' arm' : '') + '" ' + (ask ? 'data-wdelok' : 'data-wdel') + '="' + esc(t.id) + '" aria-label="' + esc(t.subj + ' ' + t.label) + 'を' + (ask ? '本当に消す' : '消す') + '">' + (ask ? '消す?' : '×') + '</button></div>';
+  }
+  function weekGrid(ts) {
+    if (is24()) return weekList24(ts);
+    var out = '<div class="gwrap"><div class="ggrid" role="group" aria-label="週間時間割"><div class="gcorner">コマ ・ 時間</div>';
+    ORDER.forEach(function (d, i) { out += '<div class="gh" style="grid-column:' + (3 + i) + ';grid-row:1">' + WD[d] + '曜日</div>'; });
+    KOMAS.forEach(function (k) {
+      var r0 = ROWBASE[k], ks = KOMA[k].start;
+      out += '<div class="gk" id="gk-' + k + '" style="grid-column:1;grid-row:' + r0 + ' / span 6"><b>' + KOMA[k].name + '</b><span>' + hm(ks) + '<br>〜' + hm(ks + 90) + '</span></div>';
+      for (var i = 0; i < 6; i++) out += '<div class="gt" style="grid-column:2;grid-row:' + (r0 + i) + '">' + hm(ks + i * 15) + '</div>';
+    });
+    ORDER.forEach(function (d, i) {
+      if (d === 0 || d === 3) return;
+      KOMAS.forEach(function (k) {
+        for (var si = 0; si < 6; si++) {
+          var busy = ts.some(function (t) { return t.day === d && t.koma === k && si >= t.s && si < t.s + t.n; });
+          if (!busy) out += '<button type="button" class="gadd" data-wadd="' + d + ':' + k + ':' + si + '" style="grid-column:' + (3 + i) + ';grid-row:' + (ROWBASE[k] + si) + '" aria-label="' + WD[d] + '曜日 ' + hm(KOMA[k].start + si * 15) + 'に予定を追加">＋</button>';
+        }
+      });
+    });
+    ts.filter(function (t) { return t.day !== 0 && t.day !== 3 && ROWBASE[t.koma]; }).forEach(function (t) {
+      out += wcell(t, t.mins < 30 ? '' : ' stack', 'grid-column:' + (3 + ORDER.indexOf(t.day)) + ';grid-row:' + (ROWBASE[t.koma] + t.s) + ' / span ' + t.n);
+    });
+    out += '<div class="gsun" id="gwed" style="grid-column:5;grid-row:2 / -1">' + tasksOf(ts, 3).map(function (t) { return wcell(t, ' stack', 'min-height:calc(var(--rh) * ' + Math.max(1, Math.ceil(t.n / 2)) + ')'); }).join('') + '<button type="button" class="gadd wide" data-wadd="3:F:0">＋ 水曜日に予定を追加</button></div>';
+    out += '<div class="gsun" id="gsun">' + tasksOf(ts, 0).map(function (t) { return wcell(t, ' stack', 'min-height:calc(var(--rh) * ' + Math.max(1, Math.ceil(t.n / 2)) + ')'); }).join('') + '<button type="button" class="gadd wide" data-wadd="0:F:0">＋ 日曜日に予定を追加</button></div>';
+    return out + '</div></div>';
+  }
+
+  /* ---------- 一覧 ---------- */
+  function viewList() {
+    var list = students(), pk = ymd(addDays(parseYmd(S.key), -7)), out = '';
+    var need = list.filter(function (s) { return S.weeks[wid(s.id, pk)] && !hasEval(s.id, pk); });
+    out += '<p class="hint" style="margin:0">毎週月曜日の16:30に、前の週を評価します。生徒から届く「勉強きろく」を取り込むと、進み具合が見られます。</p>';
+    if (need.length) out += '<div class="banner"><span>前の週(' + rangeLabel(pk) + ')の評価が、まだの生徒: ' + need.map(function (s) { return esc(s.name); }).join('、') + '</span></div>';
+    out += '<section class="panel"><h2>生徒の記録を取り込む</h2><p class="hint">生徒から届いた「勉強きろく」のメッセージを、そのまま貼り付けます。名前が同じ生徒に、自動で入ります。</p>' +
+      '<div class="field"><label for="impsel">どの生徒の記録?</label><select id="impsel"><option value="auto"' + (S.importSid === 'auto' ? ' selected' : '') + '>名前から自動で選ぶ</option>' + list.map(function (s) { return '<option value="' + s.id + '"' + (S.importSid === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="imp">貼り付け</label><textarea id="imp" class="code" placeholder="【勉強きろく】…">' + esc(S.importText) + '</textarea></div><div class="actions"><button type="button" class="btn pri" data-import' + (S.busy ? ' disabled' : '') + '>取り込む</button></div>' + msgFor('import') + '</section>';
+    if (!list.length) out += '<p class="empty">' + (S.studentsDef ? 'まだ生徒がいません。下で、最初の生徒を追加してください。' : '読み込み中…') + '</p>';
+    list.forEach(function (s) {
+      var w = S.weeks[wid(s.id, S.key)], st = w ? stats(w) : null, pw = S.weeks[wid(s.id, pk)], flag = pw && !hasEval(s.id, pk);
+      out += '<section class="wk stu"><button type="button" data-pick="' + s.id + '"><div><div class="r1">' + esc(s.name) + '<span class="badge plain">' + PATTERNS[s.pattern] + '</span>' + (flag ? '<span class="badge warn">前の週 未評価</span>' : '') + '</div><div class="r2">' +
+        (st ? '今週 <b>' + pct(st.dn, st.tot) + '%</b> ・ ' + dur(st.dn) + ' / ' + dur(st.tot) + (w.importedAt ? ' ・ 取り込み ' + fmtDT(w.importedAt) : '') : '今週の記録は、まだ取り込まれていません') + '</div></div><span class="gr" aria-hidden="true">›</span></button></section>';
+    });
+    var tpl = list.filter(function (s) { return (s.pattern === 'juken') === (S.newPat === 'juken'); }).map(function (s) { return '<option value="' + s.id + '"' + (S.newFrom === s.id ? ' selected' : '') + '>' + esc(s.name) + ' の時間割をコピー</option>'; }).join('');
+    out += '<section class="panel"><h2>生徒を追加</h2><div class="field"><label for="nn">なまえ</label><input type="text" id="nn" maxlength="20" autocomplete="off" value="' + esc(S.newName) + '"></div><div class="field"><label for="np">コース</label><select id="np">' + Object.keys(PATTERNS).map(function (k) { return '<option value="' + k + '"' + (k === S.newPat ? ' selected' : '') + '>' + PATTERNS[k] + (k === 'juken' ? '(A・B・Cコマ)' : '(24時間)') + '</option>'; }).join('') + '</select></div><div class="field"><label for="nf">はじめの時間割</label><select id="nf">' + (S.newPat === 'juken' ? '<option value="tpl"' + (S.newFrom === 'tpl' ? ' selected' : '') + '>ひな形(算数・理科・国語・計算)</option>' : '<option value="empty"' + (S.newFrom === 'empty' ? ' selected' : '') + '>空の時間割(自分で入れる)</option>') + tpl + '</select></div><div class="actions"><button type="button" class="btn pri" data-addstu' + (S.busy ? ' disabled' : '') + '>追加</button></div>' + msgFor('addstu') + '</section>';
+    var uv = S.urlVal == null ? studentUrl() : S.urlVal;
+    out += '<section class="panel"><h2>生徒用ページのURL</h2><p class="hint">生徒に送るリンクの、もとになるURLです。公開した生徒用ページのURLを入れます。</p><div class="field"><label for="uu">URL</label><input type="text" id="uu" autocomplete="off" value="' + esc(uv) + '"></div><div class="actions"><button type="button" class="btn" data-saveurl' + (S.busy ? ' disabled' : '') + '>保存</button></div>' + msgFor('url') + '</section>';
+    return out;
+  }
+
+  /* ---------- 進み具合 ---------- */
+  function viewProgress() {
+    var c = cur(), w = week(S.key);
+    if (!w) return '<p class="empty">' + (S.weeksDef ? esc(c.name) + 'さんの今週の記録は、まだ取り込まれていません。<br>生徒から届いた「勉強きろく」を、「生徒一覧」で取り込んでください。' : '読み込み中…') + '</p>';
+    var st = stats(w), p = pct(st.dn, st.tot), n = nowMin(), td = todayNum();
+    var daysHtml = ORDER.map(function (d) {
+      var y = st.day[d] || { tot: 0, dn: 0, n: 0, c: 0 }, dt = addDays(parseYmd(S.key), (d + 6) % 7);
+      return '<div class="dcell"><b>' + WD[d] + '</b><span>' + dt.getDate() + '</span><div class="bar" aria-hidden="true"><i style="width:' + pct(y.dn, y.tot) + '%"></i></div><span>' + y.c + '/' + y.n + '</span></div>';
+    }).join('');
+    var todo = '';
+    ORDER.forEach(function (d) {
+      var dt = addDays(parseYmd(S.key), (d + 6) % 7), past = ymd(dt) < ymd(new Date());
+      var rest = tasksOf(st.ts, d).filter(function (t) { return !isDone(w, t.id); });
+      if (!rest.length) return;
+      todo += '<div class="todo"><h3>' + (dt.getMonth() + 1) + '/' + dt.getDate() + '(' + WD[d] + ')<span class="hint">' + rest.length + '件' + (d === td ? ' ・ 今日' : '') + '</span></h3><ul>' + rest.map(function (t) {
+        var late = past || (d === td && t.end <= n);
+        return '<li class="li ' + SUBJ[t.subj] + '"><span class="t">' + hm(t.start) + '〜' + hm(t.end) + '</span><span class="chip">' + esc(t.subj) + '</span><span>' + esc(t.label) + '(' + t.mins + '分)</span>' + (late ? '<span class="mini late">おくれ</span>' : '<span class="mini no">これから</span>') + '</li>';
+      }).join('') + '</ul></div>';
+    });
+    var fin = st.ts.filter(function (t) { return isDone(w, t.id); }).sort(function (a, b) { return (okTs(w.done[a.id]) ? w.done[a.id] : 9e15) - (okTs(w.done[b.id]) ? w.done[b.id] : 9e15); });
+    var finHtml = fin.length ? '<ul class="donelist">' + fin.map(function (t) { return '<li class="dl ' + SUBJ[t.subj] + '"><time>' + (fmtDT(w.done[t.id]) || '日時なし') + '</time><span class="chip">' + esc(t.subj) + '</span><span>' + esc(t.label) + '(' + t.mins + '分)</span></li>'; }).join('') + '</ul>' : '<p class="hint">まだありません。</p>';
+    return '<section class="panel"><h2>' + esc(c.name) + ' ・ 今週の進み(' + rangeLabel(S.key) + ')</h2><div class="big"><strong>' + p + '%</strong><span>' + dur(st.dn) + ' / ' + dur(st.tot) + ' 終わりました</span></div><div class="bar" aria-hidden="true"><i style="width:' + p + '%"></i></div>' + (w.importedAt ? '<p class="hint">生徒の記録を取り込んだ日時: ' + fmtDT(w.importedAt) + '</p>' : '') + '<h3>曜日ごと(終わった数 / 予定の数)</h3><div class="dgrid">' + daysHtml + '</div></section>' +
+      '<section class="panel"><h2>教科ごと</h2><div class="subs">' + subjBars(st) + '</div></section>' +
+      '<section class="panel"><h2>まだ終わっていない予定</h2>' + (todo || '<p class="hint">今週の予定は、ぜんぶ終わっています。</p>') + '</section>' +
+      '<section class="panel"><h2>できた記録(完了した日時)</h2>' + finHtml + '</section>';
+  }
+
+  /* ---------- 週の記録 ---------- */
+  function ek(key) { return wid(S.sid, key); }
+  function evalText(key) {
+    var d = S.draft[ek(key)] || {}, g = GRADES.filter(function (x) { return x[0] === d.grade; })[0], c = cur();
+    return '【先生のひとこと ' + (c && c.name ? c.name + 'さん ' : '') + rangeLabel(key) + '】\n' + (g ? g[0] + ' ' + g[1] + '\n' : '') + (d.comment || '');
+  }
+  function evalForm(key) {
+    var ev = evalOf(S.sid, key) || {}, d = S.draft[ek(key)] || (S.draft[ek(key)] = { grade: ev.grade || '', comment: ev.comment || '' });
+    return '<div class="field"><span class="hint">評価(下で、生徒に送る文章を作れます)</span><div class="chips" role="group" aria-label="評価">' + GRADES.map(function (g) {
+      return '<button type="button" class="cbtn" data-grade="' + g[0] + '" data-wk="' + key + '" aria-pressed="' + (d.grade === g[0]) + '">' + g[0] + ' ' + g[1] + '</button>';
+    }).join('') + '</div></div><div class="field"><label for="ec-' + key + '">コメント</label><textarea id="ec-' + key + '" data-comment="' + key + '" maxlength="500" placeholder="来週に向けて、ひとこと">' + esc(d.comment) + '</textarea></div>' +
+      '<div class="actions"><button type="button" class="btn pri" data-saveeval="' + key + '"' + (S.busy ? ' disabled' : '') + '>評価を保存</button></div>' +
+      '<div class="field"><label for="evc-' + key + '">生徒に送る文章(LINEやメールに貼り付けます)</label><textarea id="evc-' + key + '" class="code" readonly>' + esc(evalText(key)) + '</textarea><div class="actions"><button type="button" class="btn" data-copy="evc-' + key + '">コピー</button></div></div>' +
+      msgFor('eval-' + key) + (ev.at ? '<p class="hint">保存ずみ(' + (new Date(ev.at).getMonth() + 1) + '/' + new Date(ev.at).getDate() + ')</p>' : '');
+  }
+  function weekDetail(key, w) {
+    var st = stats(w), out = '<div class="subs" style="padding-top:12px">' + subjBars(st) + '</div>';
+    ORDER.forEach(function (d) {
+      var ts = tasksOf(st.ts, d); if (!ts.length) return;
+      var dt = addDays(parseYmd(key), (d + 6) % 7);
+      out += '<div class="todo"><h3>' + (dt.getMonth() + 1) + '/' + dt.getDate() + '(' + WD[d] + ')</h3><ul>' + ts.map(function (t) {
+        var dn = isDone(w, t.id);
+        return '<li class="li ' + SUBJ[t.subj] + '"><span class="t">' + hm(t.start) + '〜' + hm(t.end) + '</span><span class="chip">' + esc(t.subj) + '</span><span>' + esc(t.label) + '(' + t.mins + '分)</span>' + (dn ? '<span class="ok">できた' + (okTs(w.done[t.id]) ? ' ' + fmtDT(w.done[t.id]) : '') + '</span>' : '<span class="no">まだ</span>') + '</li>';
+      }).join('') + '</ul></div>';
+    });
+    return out + evalForm(key);
+  }
+  function viewRecords() {
+    var c = cur(), keys = Object.keys(S.weeks).filter(function (k) { return S.weeks[k].sid === S.sid; }).map(function (k) { return S.weeks[k].start; }).sort().reverse(), pk = ymd(addDays(parseYmd(S.key), -7)), out = '';
+    out += '<p class="hint" style="margin:0">' + esc(c.name) + 'さんの記録です。記録は週ごとに残ります。</p>';
+    if (week(pk) && !hasEval(S.sid, pk)) out += '<div class="banner"><span>前の週(' + rangeLabel(pk) + ')の評価が、まだ入っていません。</span><button type="button" data-openweek="' + pk + '">評価する</button></div>';
+    if (!keys.length) return out + '<p class="empty">' + (S.weeksDef ? 'まだ記録がありません。生徒から届いた「勉強きろく」を、「生徒一覧」で取り込んでください。' : '読み込み中…') + '</p>';
+    keys.forEach(function (key) {
+      var w = week(key), st = stats(w), ev = evalOf(S.sid, key), open = S.openWeek === key, now = key === S.key;
+      out += '<section class="wk"><button type="button" data-openweek="' + key + '" aria-expanded="' + open + '"><div><div class="r1">' + rangeLabel(key) + (now ? '<span class="badge">今週</span>' : '') + (!now && !hasEval(S.sid, key) ? '<span class="badge plain">未評価</span>' : '') + '</div><div class="r2">' + pct(st.dn, st.tot) + '% ・ ' + dur(st.dn) + ' / ' + dur(st.tot) + '</div></div><span class="gr" aria-label="評価">' + esc(ev && ev.grade ? ev.grade : '−') + '</span></button>' + (open ? '<div class="body">' + weekDetail(key, w) + '</div>' : '') + '</section>';
+    });
+    return out;
+  }
+
+  /* ---------- スケジュール ---------- */
+  function newDraft(k, s) {
+    var koma = k || komasOf(S.eday)[0];
+    if (koma === 'E' && !(s >= 0)) { var le = 0; tasksOf(curTasks(), S.eday).forEach(function (t) { if (t.end > le) le = t.end; }); s = le ? Math.min(282, Math.ceil(le / 5)) : 204; }
+    return { id: null, day: S.eday, koma: koma, s: s || 0, n: koma === 'E' ? 18 : Math.min(6, KOMA[koma].slots - (s || 0)), subj: '算数', label: '授業' }; }
+  function linkText() {
+    var c = cur(); if (!c) return '';
+    var o = { v: c.sched.v, t: curTasks().map(toArr), p: pat() };
+    if (c.name) o.n = c.name;
+    return studentUrl() + '#SIE-S1:' + b64e(JSON.stringify(o));
+  }
+  function viewEdit() {
+    var c = cur(), ts = curTasks(), e = S.editing, out = '';
+    out += '<section class="panel"><h2>' + esc(c.name) + ' の時間割</h2><p class="hint">時間わくを押すと予定を追加、予定を押すと変更できます。変えたら、下の「生徒にわたすリンク」を送りなおします。過去の週の記録は変わりません。</p><div class="vsw" role="group" aria-label="表示"><button type="button" class="cbtn" data-eview="day" aria-pressed="' + (S.eview === 'day') + '">1日ずつ</button><button type="button" class="cbtn" data-eview="week" aria-pressed="' + (S.eview === 'week') + '">週間表</button></div>' + (S.eview === 'day' ? dayTabs(ts, S.eday) : '') + '</section>';
+    out += S.eview === 'week' ? weekGrid(ts) : timeline(ts, S.eday);
+    if (e) {
+      var ks = KOMA[e.koma].start;
+      out += '<section class="panel" aria-labelledby="fh"><h2 id="fh">' + (e.id ? '予定を変更' : '予定を追加') + '(' + WD[e.day] + '曜日)</h2><div class="row2">' + (is24() ? '' : '<div class="field"><label for="f-koma">' + (e.koma === 'F' ? '時間帯' : 'コマ') + '</label><select id="f-koma">' + komasOf(e.day).map(function (k) { return '<option value="' + k + '"' + (k === e.koma ? ' selected' : '') + '>' + KOMA[k].name + '(' + hm(KOMA[k].start) + '〜' + hm(KOMA[k].start + KOMA[k].slots * 15) + ')</option>'; }).join('') + '</select></div>') + '<div class="field"><label for="f-start">' + (is24() ? 'はじまりの時刻' : 'はじまり') + '</label><select id="f-start">' + range(KOMA[e.koma].slots).map(function (i) { return '<option value="' + i + '"' + (i === e.s ? ' selected' : '') + '>' + hm(ks + i * U(e.koma)) + '</option>'; }).join('') + '</select></div></div>' +
+        kstChips(e) + '<fieldset><legend>長さ</legend><div class="chips">' + durList(e.koma).map(function (d) { return '<button type="button" class="cbtn" data-dur="' + d.n + '" aria-pressed="' + (e.n === d.n) + '"' + (e.s + d.n > KOMA[e.koma].slots ? ' disabled' : '') + '>' + d.m + '分</button>'; }).join('') + '</div><span class="hint">終わりは ' + hm(ks + (e.s + e.n) * U(e.koma)) + ' です。</span></fieldset>' +
+        '<fieldset><legend>教科</legend><div class="chips">' + SUBJ_LIST.map(function (s) { return '<button type="button" class="cbtn s ' + SUBJ[s] + '" data-subj="' + s + '" aria-pressed="' + (e.subj === s) + '">' + s + '</button>'; }).join('') + '</div></fieldset>' +
+        '<div class="field"><label for="f-label">内容</label><input type="text" id="f-label" maxlength="20" value="' + esc(e.label) + '"><div class="chips">' + QUICK.map(function (q) { return '<button type="button" class="cbtn" data-quick="' + esc(q) + '" aria-pressed="' + (e.label === q) + '">' + q + '</button>'; }).join('') + '</div></div>' + msgFor('form') +
+        (S.rep.open ? '<fieldset class="repbox"><legend>くり返す先をえらびます</legend><p class="hint">曜日:同じコマ・同じ時間に作ります</p><div class="chips" role="group" aria-label="くり返す曜日">' + ORDER.filter(function (d) { return d !== e.day; }).map(function (d) { return '<button type="button" class="cbtn" data-repday="' + d + '" aria-pressed="' + !!S.rep.days[d] + '">' + WD[d] + '</button>'; }).join('') + '</div>' + (e.day !== 0 && !is24() ? '<p class="hint">同じ曜日のほかのコマ:同じ位置に作ります</p><div class="chips" role="group" aria-label="くり返すコマ">' + KOMAS.filter(function (k) { return k !== e.koma; }).map(function (k) { return '<button type="button" class="cbtn" data-repkoma="' + k + '" aria-pressed="' + !!(S.rep.komas && S.rep.komas[k]) + '">' + KOMA[k].name + '</button>'; }).join('') + '</div>' : '') + '<div class="actions"><button type="button" class="btn pri" data-repsave' + (S.busy ? ' disabled' : '') + '>選んだところにも保存</button></div></fieldset>' : '') +
+        '<div class="actions"><button type="button" class="btn pri" data-save' + (S.busy ? ' disabled' : '') + '>保存</button>' + (e.id ? '<button type="button" class="btn" data-copy-task>コピー</button>' : '') + '<button type="button" class="btn" data-edrep aria-pressed="' + S.rep.open + '">くり返す</button>' + (e.id ? '<button type="button" class="btn dng' + (S.delArm ? ' arm' : '') + '" data-del>' + (S.delArm ? 'もう一度おすと削除' : '削除') + '</button>' : '') + '<button type="button" class="btn" data-cancel>とじる</button></div></section>';
+    } else {
+      out += '<div class="actions"><button type="button" class="btn pri" data-new>予定を追加</button></div>' + msgFor('page');
+    }
+    var ln = S.lname == null ? c.name : S.lname;
+    out += '<section class="panel"><h2>生徒にわたすリンク</h2><p class="hint">この時間割で開くリンクです。LINEなどで生徒(保護者)に送ります。生徒がリンクをひらくと、この時間割で始まります。時間割を変えたら、あらためて送ります。</p><div class="field"><label for="lnk">リンク</label><textarea id="lnk" class="code" readonly>' + esc(linkText()) + '</textarea></div><div class="actions"><button type="button" class="btn pri" data-copy="lnk">リンクをコピー</button></div></section>';
+    var pv = S.patVal == null ? pat() : S.patVal;
+    out += '<section class="panel"><h2>コース(時間割のパターン)</h2><p class="hint">「中学受験」はA・B・Cコマ、「小学生」「中学生」「高校生」は0:00〜24:00を15分刻みで自由に入れます。「中学受験」と、それ以外のあいだで切りかえると、いまの時間割は空になります。</p><div class="field"><label for="pp">コース</label><select id="pp">' + Object.keys(PATTERNS).map(function (k) { return '<option value="' + k + '"' + (k === pv ? ' selected' : '') + '>' + PATTERNS[k] + '</option>'; }).join('') + '</select></div><div class="actions"><button type="button" class="btn' + (S.patAsk ? ' dng arm' : '') + '" data-patchange' + (S.busy ? ' disabled' : '') + '>' + (S.patAsk ? 'もう一度おすと切りかえ' : 'コースを変更') + '</button>' + (S.patAsk ? '<button type="button" class="btn" data-patno>やめる</button>' : '') + '</div>' + msgFor('pat') + '</section>';
+    var sb = S.students[S.sid] && S.students[S.sid].base, sbl = is24() ? '未登録(空の時間割がもどり先です)' : '未登録(ひな形の時間割がもどり先です)';
+    if (sb && sb.tasks && sb.tasks.length) { var bd = new Date(sb.at || 0); sbl = '登録ずみ(' + (bd.getMonth() + 1) + '/' + bd.getDate() + ' ' + (bd.getHours() < 10 ? '0' : '') + bd.getHours() + ':' + (bd.getMinutes() < 10 ? '0' : '') + bd.getMinutes() + ')'; }
+    out += '<section class="panel"><h2>基本の時間割</h2><p class="hint">いまの時間割を「基本」として登録しておくと、あとで「リセット」でその時間割にもどせます。過去の週の記録は変わりません。</p><p class="hint">基本の時間割:' + esc(sbl) + '</p><div class="actions"><button type="button" class="btn pri" data-basesave' + (S.busy ? ' disabled' : '') + '>いまの時間割を基本として登録</button>' + (S.baseAsk ? '<button type="button" class="btn dng arm" data-baseok' + (S.busy ? ' disabled' : '') + '>本当にリセット</button><button type="button" class="btn" data-baseno>やめる</button>' : '<button type="button" class="btn" data-basereset' + (S.busy ? ' disabled' : '') + '>リセット(基本の時間割にもどす)</button>') + '</div>' + msgFor('base') + '</section>';
+    out += '<section class="panel"><h2>すべての予定を削除</h2><p class="hint">この生徒の時間割の予定を、すべて消します。過去の週の記録は消えません。もとにもどすときは、上の「リセット」を使います。</p><div class="actions">' + (S.clearAsk ? '<button type="button" class="btn dng arm" data-clearok' + (S.busy ? ' disabled' : '') + '>本当にすべて削除</button><button type="button" class="btn" data-clearno>やめる</button>' : '<button type="button" class="btn dng" data-clear' + (S.busy ? ' disabled' : '') + '>すべての予定を削除</button>') + '</div>' + msgFor('clear') + '</section>';
+    out += '<section class="panel"><h2>生徒の名前</h2><div class="field"><label for="rn">なまえ(生徒の「勉強きろく」の名前と同じにします)</label><input type="text" id="rn" maxlength="20" autocomplete="off" value="' + esc(S.rnVal == null ? c.name : S.rnVal) + '"></div><div class="actions"><button type="button" class="btn" data-rename' + (S.busy ? ' disabled' : '') + '>名前を保存</button></div>' + msgFor('rename') + '</section>';
+    out += '<section class="panel"><h2>この生徒を削除</h2><p class="hint">時間割と、取り込んだ記録・評価が、すべて消えます。元にもどせません。</p><div class="actions"><button type="button" class="btn dng' + (S.delStuArm ? ' arm' : '') + '" data-delstu' + (S.busy ? ' disabled' : '') + '>' + (S.delStuArm ? 'もう一度おすと削除' : '削除する') + '</button>' + (S.delStuArm ? '<button type="button" class="btn" data-delstuno>やめる</button>' : '') + '</div>' + msgFor('delstu') + '</section>';
+    return out;
+  }
+
+  /* ---------- render ---------- */
+  var TABS = [['list', '生徒一覧'], ['progress', '進み具合'], ['records', '週の記録'], ['edit', '時間割']];
+  function render() {
+    var a = document.activeElement, fid = a && a.id, ss = null, se = null;
+    try { ss = a.selectionStart; se = a.selectionEnd; } catch (x) {}
+    var html;
+    if (S.unavailable) html = '<p class="empty">この画面では、記録を保存したり共有したりできません。共有されたリンクから開いてください。</p>';
+    else if (!S.ready) html = '<p class="loading">読み込み中…</p>';
+    else if (!S.canEdit) html = '<p class="empty">ここは先生用のページです。生徒は、先生から届いたリンクを開いてください。</p>';
+    else {
+      var list = students();
+      if (S.sid && !S.students[S.sid]) S.sid = null;
+      if (!S.sid && list.length) S.sid = list[0].id;
+      html = '<h1>勉強スケジュール帳(先生用)</h1><nav class="tabs" aria-label="先生用メニュー">' + TABS.map(function (x) { return '<button type="button" data-tab="' + x[0] + '" aria-pressed="' + (S.view === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</nav>';
+      if (S.view === 'list') html += viewList();
+      else if (!list.length) html += '<p class="empty">先に「生徒一覧」で、生徒を追加してください。</p>';
+      else {
+        html += '<div class="field"><label for="sidsel">生徒</label><select id="sidsel">' + list.map(function (s) { return '<option value="' + s.id + '"' + (s.id === S.sid ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></div>';
+        html += S.view === 'progress' ? viewProgress() : S.view === 'records' ? viewRecords() : viewEdit();
+      }
+    }
+    var y = window.scrollY;
+    app.className = 'app' + (S.ready && S.canEdit && S.view === 'edit' && S.eview === 'week' ? ' wide' : '');
+    app.innerHTML = html;
+    if (fid) { var el = document.getElementById(fid); if (el) { el.focus(); try { if (ss != null) el.setSelectionRange(ss, se); } catch (x2) {} } }
+    window.scrollTo(0, y);
+  }
+
+  /* ---------- data ---------- */
+  function overlap(e) { return curTasks().some(function (t) { return t.id !== e.id && t.day === e.day && t.koma === e.koma && e.s < t.s + t.n && t.s < e.s + e.n; }); }
+  function newId(p) { return p + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36); }
+  function toForm() {
+    var f = document.getElementById('fh'); if (!f) return; f = f.closest('section') || f;
+    try {
+      f.scrollIntoView({ block: 'start' });
+      var sb = f.querySelector('[data-save]');
+      if (sb) { var r = sb.getBoundingClientRect(); if (r.bottom > (window.innerHeight || 600)) { sb.scrollIntoView({ block: 'end' }); window.scrollBy(0, 16); } sb.focus({ preventScroll: true }); }
+    } catch (x) {}
+  }
+  function doJump() {
+    var j = S.jump; S.jump = null; if (!j) return;
+    if (is24() && S.eview !== 'week') { goMin(j.min == null ? 0 : j.min, j.id); return; }
+    if (is24()) { var e24 = document.getElementById(S.eview === 'week' ? 'wc-' + j.day : 'kz-D'); try { if (e24 && e24.scrollIntoView) e24.scrollIntoView({ block: 'center' }); } catch (x) {} return; }
+    var el = j.day === 0 ? document.getElementById(S.eview === 'week' ? 'gsun' : 'kz-F') : document.getElementById((S.eview === 'week' ? 'gk-' : 'kz-') + j.koma);
+    try { if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' }); } catch (x) {}
+  }
+  function say(where, kind, text) { S.busy = false; S.msg = { where: where, kind: kind, text: text }; render(); doJump(); }
+
+  function saveTasks(list, okText, where) {
+    S.busy = true; S.msg = null; render();
+    var v = Date.now(), c = cur(); if (c && c.sched.v >= v) v = c.sched.v + 1;
+    S.db.doc('students/' + S.sid).update({ sched: { v: v, tasks: list.map(raw) } }).then(function () { say(where, 'ok', okText); }, function () { say('form', 'err', '保存できませんでした。もう一度ためしてください。'); });
+  }
+  function slotFor(day, start, mins) {
+    if (is24()) return start >= 0 && start % 5 === 0 && start + mins <= 1440 ? { koma: 'E', s: start / 5 } : null;
+    if (day === 0 || day === 3) { var s0 = Math.round((start - KOMA.F.start) / 15); return start >= KOMA.F.start && s0 * 15 + mins <= 52 * 15 ? { koma: 'F', s: s0 } : null; }
+    for (var i = 0; i < KOMAS.length; i++) { var k = KOMAS[i], ks = KOMA[k].start; if (start >= ks && start + mins <= ks + 90 && (start - ks) % 15 === 0) return { koma: k, s: (start - ks) / 15 }; }
+    return null;
+  }
+  function clashes(list, c) { return normList(list).some(function (t) { return t.id !== c.id && t.day === c.day && t.koma === c.koma && c.s < t.s + t.n && t.s < c.s + c.n; }); }
+  function onSave(repDays, repKomas) {
+    var e = S.editing; if (!e || S.busy) return;
+    e.label = (document.getElementById('f-label') ? document.getElementById('f-label').value : e.label).trim();
+    if (!e.label) { S.msg = { where: 'form', kind: 'err', text: '内容を入れてください。' }; render(); return; }
+    if (e.s + e.n > KOMA[e.koma].slots) { S.msg = { where: 'form', kind: 'err', text: '時間わくの終わり(' + hm(KOMA[e.koma].start + KOMA[e.koma].slots * U(e.koma)) + ')をこえています。はじまりか長さを変えてください。' }; render(); return; }
+    var rec = { id: e.id || newId('t'), day: e.day, koma: e.koma, s: e.s, n: e.n, subj: e.subj, label: e.label };
+    if (clashes(curTasks(), rec)) { S.msg = { where: 'form', kind: 'err', text: 'ほかの予定と時間がかさなっています。' }; render(); return; }
+    var list = curTasks().map(raw).filter(function (t) { return t.id !== rec.id; }); list.push(rec);
+    var st = KOMA[e.koma].start + e.s * U(e.koma), made = [], skipped = [];
+    (repDays || []).forEach(function (d) {
+      var sl = slotFor(d, st, e.n * U(e.koma)); if (!sl) { skipped.push(WD[d]); return; }
+      var cand = { id: newId('t'), day: d, koma: sl.koma, s: sl.s, n: e.n, subj: e.subj, label: e.label };
+      if (clashes(list, cand)) { skipped.push(WD[d]); return; }
+      list.push(cand); made.push(WD[d]);
+    });
+    (repKomas || []).forEach(function (k2) {
+      var cand = { id: newId('t'), day: e.day, koma: k2, s: e.s, n: e.n, subj: e.subj, label: e.label };
+      if (e.s + e.n > KOMA[k2].slots || clashes(list, cand)) { skipped.push(KOMA[k2].name); return; }
+      list.push(cand); made.push(KOMA[k2].name);
+    });
+    S.jump = { day: rec.day, koma: rec.koma, id: rec.id, min: KOMA[rec.koma].start + rec.s * U(rec.koma) };
+    S.editing = null; S.delArm = false; S.rep = { open: false, days: {}, komas: {} };
+    saveTasks(list, '保存しました。' + (made.length ? '「' + made.join('・') + '」にも作りました。' : '') + (skipped.length ? '「' + skipped.join('・') + '」は、時間が重なる、または入らないため作れませんでした。' : '') + '下のリンクを、生徒に送りなおしてください。', 'page');
+  }
+  function onCopyTask() {
+    var e = S.editing; if (!e || !e.id) return;
+    var c = { id: null, day: e.day, koma: e.koma, s: e.s, n: e.n, subj: e.subj, label: e.label }, ns = e.s + e.n;
+    if (ns + e.n <= KOMA[e.koma].slots && !clashes(curTasks(), { id: null, day: e.day, koma: e.koma, s: ns, n: e.n })) c.s = ns;
+    S.editing = c; S.rep = { open: false, days: {}, komas: {} }; S.msg = { where: 'form', kind: 'ok', text: 'コピーしました。曜日や時間を変えて、保存してください。' }; render();
+    toForm();
+  }
+  function onDelete() {
+    var e = S.editing; if (!e || !e.id || S.busy) return;
+    if (!S.delArm) { S.delArm = true; render(); return; }
+    var list = curTasks().map(raw).filter(function (t) { return t.id !== e.id; });
+    S.jump = { day: e.day, koma: e.koma, min: KOMA[e.koma].start + e.s * U(e.koma) };
+    S.editing = null; S.delArm = false;
+    saveTasks(list, '削除しました。下のリンクを、生徒に送りなおしてください。', 'page');
+  }
+  function onSaveEval(key) {
+    var d = S.draft[ek(key)]; if (!d || S.busy) return;
+    var c = document.getElementById('ec-' + key); if (c) d.comment = c.value;
+    S.busy = true; S.msg = null; render();
+    S.db.doc('evals/' + ek(key)).set({ sid: S.sid, week: key, grade: d.grade || '', comment: d.comment || '', at: Date.now() }).then(function () { say('eval-' + key, 'ok', '評価を保存しました。'); }, function () { say('eval-' + key, 'err', '保存できませんでした。もう一度ためしてください。'); });
+  }
+  function copyFrom(btn) {
+    var el = document.getElementById(btn.getAttribute('data-copy')); if (!el) return;
+    var orig = btn.textContent;
+    function ok() { btn.textContent = 'コピーしました'; setTimeout(function () { btn.textContent = orig; }, 2000); }
+    function ng() { el.focus(); el.select(); btn.textContent = '文章を選びました。コピーしてください'; setTimeout(function () { btn.textContent = orig; }, 3500); }
+    try { navigator.clipboard.writeText(el.value).then(ok, ng); } catch (e) { ng(); }
+  }
+  function nameKey(s) { return String(s || '').normalize('NFKC').replace(/\s+/g, '').replace(/(さん|くん|君|ちゃん)$/, '').toLowerCase(); }
+
+  function onAddStudent() {
+    if (S.busy) return;
+    var nm = (S.newName || '').trim();
+    if (!nm) return say('addstu', 'err', 'なまえを入れてください。');
+    var dup = students().some(function (s) { return nameKey(s.name) === nameKey(nm); });
+    if (dup) return say('addstu', 'err', '同じ名前の生徒がいます。区別できる名前にしてください(例: 山田A)。');
+    var tasks = S.newPat === 'juken' ? DEFAULT_TASKS.map(function (a) { return raw(toTask(a)); }) : [];
+    if (S.newFrom !== 'tpl' && S.newFrom !== 'empty' && S.students[S.newFrom] && S.students[S.newFrom].sched) tasks = (S.students[S.newFrom].sched.tasks || []).map(raw);
+    var id = newId('s'), now = Date.now();
+    S.busy = true; S.msg = null; render();
+    S.db.doc('students/' + id).set({ name: nm, pattern: S.newPat, sched: { v: now, tasks: tasks }, order: now, createdAt: now }).then(function () {
+      S.newName = ''; S.sid = id; lsSet('sid', id); S.view = 'edit'; S.busy = false; S.msg = null; render();
+    }, function () { say('addstu', 'err', '保存できませんでした。もう一度ためしてください。'); });
+  }
+  function onRename() {
+    var c = cur(); if (!c || S.busy) return;
+    var nm = (document.getElementById('rn') ? document.getElementById('rn').value : '').trim();
+    if (!nm) return say('rename', 'err', 'なまえを入れてください。');
+    if (students().some(function (s) { return s.id !== c.id && nameKey(s.name) === nameKey(nm); })) return say('rename', 'err', '同じ名前の生徒がいます。');
+    S.busy = true; S.msg = null; render();
+    S.db.doc('students/' + c.id).update({ name: nm }).then(function () { S.rnVal = null; say('rename', 'ok', '名前を保存しました。リンクを送りなおすと、生徒の画面にも入ります。'); }, function () { say('rename', 'err', '保存できませんでした。'); });
+  }
+  function onDeleteStudent() {
+    var c = cur(); if (!c || S.busy) return;
+    if (!S.delStuArm) { S.delStuArm = true; render(); return; }
+    var jobs = [S.db.doc('students/' + c.id).delete()];
+    Object.keys(S.weeks).forEach(function (k) { if (S.weeks[k].sid === c.id) jobs.push(S.db.doc('weeks/' + k).delete()); });
+    Object.keys(S.evals).forEach(function (k) { if (S.evals[k].sid === c.id) jobs.push(S.db.doc('evals/' + k).delete()); });
+    S.busy = true; S.delStuArm = false; render();
+    Promise.all(jobs).then(function () { S.sid = null; S.view = 'list'; S.busy = false; S.msg = null; render(); }, function () { say('delstu', 'err', '削除できませんでした。もう一度ためしてください。'); });
+  }
+  function onSaveUrl() {
+    var v = (document.getElementById('uu') ? document.getElementById('uu').value : '').trim();
+    if (!/^https:\/\/[^\s#]+$/.test(v)) return say('url', 'err', 'https:// で始まるURLを入れてください。');
+    S.busy = true; S.msg = null; render();
+    S.db.doc('config/app').set({ studentUrl: v }).then(function () { S.urlVal = null; say('url', 'ok', '保存しました。'); }, function () { say('url', 'err', '保存できませんでした。'); });
+  }
+
+  function onImport() {
+    if (S.busy) return;
+    var txt = S.importText || '', i = txt.indexOf('SIE-R1:');
+    function bad(m) { say('import', 'err', m); }
+    if (i < 0) return bad('記録のコード(SIE-R1:で始まる部分)が見つかりません。メッセージをまるごと貼り付けてください。');
+    var m = txt.slice(i + 7).replace(/\s+/g, '').match(/^[A-Za-z0-9+\/]+={0,2}/), obj;
+    if (!m) return bad('コードを読み取れませんでした。');
+    try { obj = JSON.parse(b64d(m[0])); } catch (e) { return bad('コードを読み取れませんでした。もう一度、メッセージをまるごと貼り付けてください。'); }
+    if (!obj || typeof obj.w !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(obj.w) || parseYmd(obj.w).getDay() !== 1 || !Array.isArray(obj.d)) return bad('コードの内容が正しくありません。');
+    var list = students(), stu = null, nm = String(obj.n || '').slice(0, 20);
+    if (S.importSid !== 'auto' && S.students[S.importSid]) stu = list.filter(function (s) { return s.id === S.importSid; })[0];
+    else {
+      if (!nm) return bad('記録に名前が入っていません。上の「どの生徒の記録?」で、生徒を選んでください。');
+      var hit = list.filter(function (s) { return nameKey(s.name) === nameKey(nm); });
+      if (hit.length !== 1) return bad('「' + nm + '」さんという生徒が見つかりません。生徒を追加するか、上の「どの生徒の記録?」で選んでください。');
+      stu = hit[0];
+    }
+    if (!stu) return bad('生徒が見つかりません。');
+    var ex = S.weeks[wid(stu.id, obj.w)], tasks = null;
+    if (obj.s !== undefined) tasks = validTasks(obj.s);
+    if (!tasks) tasks = ex ? ex.tasks : (stu.sched.tasks || []).map(raw);
+    var ids = {}; tasks.forEach(function (t) { ids[t.id] = 1; });
+    var done = {}, n = 0, now = Date.now(), ts = obj.t && typeof obj.t === 'object' ? obj.t : {};
+    obj.d.slice(0, 300).forEach(function (id) { if (typeof id === 'string' && ids[id] && !done[id]) { done[id] = okTs(ts[id]) ? ts[id] : now; n++; } });
+    var warn = (obj.ver && stu.sched.v && obj.ver !== stu.sched.v) ? '生徒の時間割が、先生のものと違うかもしれません(生徒が自分で変えた、または最新のリンクをまだ開いていない)。記録は、生徒の時間割で取り込みました。' : '';
+    S.busy = true; S.msg = null; render();
+    S.db.doc('weeks/' + wid(stu.id, obj.w)).set({ sid: stu.id, start: obj.w, tasks: tasks, done: done, importedAt: now }).then(function () {
+      S.importText = ''; S.sid = stu.id; lsSet('sid', stu.id); S.openWeek = obj.w;
+      say('import', 'ok', stu.name + 'さんの ' + rangeLabel(obj.w) + ' の記録を取り込みました(' + n + '件がチェックずみ)。' + warn);
+    }, function () { bad('保存できませんでした。もう一度ためしてください。'); });
+  }
+
+  /* ---------- events ---------- */
+  app.addEventListener('click', function (ev) {
+    var t = ev.target, b;
+    if ((b = t.closest('[data-pick]'))) { S.sid = b.getAttribute('data-pick'); lsSet('sid', S.sid); S.view = 'progress'; S.msg = null; S.editing = null; render(); window.scrollTo(0, 0); return; }
+    if ((b = t.closest('[data-tab]'))) { S.view = b.getAttribute('data-tab'); S.msg = null; S.editing = null; S.delStuArm = false; render(); return; }
+    if ((b = t.closest('[data-eday]'))) { S.eday = +b.getAttribute('data-eday'); S.editing = null; S.msg = null; render(); return; }
+    if ((b = t.closest('[data-edit]'))) {
+      var id = b.getAttribute('data-edit'), f = curTasks().filter(function (x) { return x.id === id; })[0];
+      if (f) { S.editing = { id: f.id, day: f.day, koma: f.koma, s: f.s, n: f.n, subj: f.subj, label: f.label }; S.msg = null; S.delArm = false; S.wdel = null; S.rep = { open: false, days: {}, komas: {} }; render(); toForm(); }
+      return;
+    }
+    if ((b = t.closest('[data-sadd]'))) { var v3 = b.getAttribute('data-sadd'); S.editing = newDraft(v3.charAt(0), +v3.slice(1)); S.msg = null; S.delArm = false; S.wdel = null; S.rep = { open: false, days: {}, komas: {} }; render(); toForm(); return; }
+    if ((b = t.closest('[data-add]'))) { var v = b.getAttribute('data-add'); S.editing = newDraft(v.charAt(0), +v.slice(1)); S.msg = null; S.delArm = false; render(); toForm(); return; }
+    if (t.closest('[data-new]')) { S.editing = newDraft(null, -1); S.msg = null; render(); return; }
+    if ((b = t.closest('[data-jt]'))) { goMin(+b.getAttribute('data-jt'), null); return; }
+    if ((b = t.closest('[data-kst]'))) { if (S.editing) { S.editing.s = Math.round(+b.getAttribute('data-kst') / 5); if (S.editing.s + S.editing.n > KOMA[S.editing.koma].slots) S.editing.n = KOMA[S.editing.koma].slots - S.editing.s; S.msg = null; render(); } return; }
+    if ((b = t.closest('[data-dur]'))) { if (S.editing) { S.editing.n = +b.getAttribute('data-dur'); S.msg = null; render(); } return; }
+    if ((b = t.closest('[data-subj]'))) { if (S.editing) { S.editing.subj = b.getAttribute('data-subj'); render(); } return; }
+    if ((b = t.closest('[data-quick]'))) { if (S.editing) { S.editing.label = b.getAttribute('data-quick'); render(); } return; }
+    if ((b = t.closest('[data-wdel]'))) { S.wdel = b.getAttribute('data-wdel'); render(); return; }
+    if ((b = t.closest('[data-wdelok]'))) { var wid = b.getAttribute('data-wdelok'), wt = curTasks().filter(function (x) { return x.id === wid; })[0]; S.wdel = null; if (!wt || S.busy) { render(); return; } S.jump = { day: wt.day, koma: wt.koma }; if (S.editing && S.editing.id === wid) S.editing = null; saveTasks(curTasks().map(raw).filter(function (x) { return x.id !== wid; }), '削除しました。下のリンクを、生徒に送りなおしてください。', 'page'); return; }
+    if ((b = t.closest('[data-repkoma]'))) { var rk = b.getAttribute('data-repkoma'); S.rep.komas = S.rep.komas || {}; S.rep.komas[rk] = !S.rep.komas[rk]; render(); return; }
+    if (t.closest('[data-patno]')) { S.patAsk = false; render(); return; }
+    if (t.closest('[data-patchange]')) {
+      if (S.busy) return; var np = S.patVal == null ? pat() : S.patVal;
+      if (np === pat()) { say('pat', 'ok', 'いまのコースと同じです。'); return; }
+      var clr = (np === 'juken') !== (pat() === 'juken');
+      if (!S.patAsk) { S.patAsk = true; S.msg = clr ? { where: 'pat', kind: 'err', text: '切りかえると、いまの時間割は空になります。よければ、もう一度おしてください。' } : null; render(); return; }
+      S.patAsk = false; S.editing = null; S.busy = true; S.msg = null; render();
+      var pd = { pattern: np }; if (clr) { var v0 = Date.now(), c0 = cur(); if (c0 && c0.sched.v >= v0) v0 = c0.sched.v + 1; pd.sched = { v: v0, tasks: [] }; } else { var v1 = Date.now(), c1 = cur(); if (c1 && c1.sched.v >= v1) v1 = c1.sched.v + 1; pd.sched = { v: v1, tasks: curTasks().map(raw) }; }
+      S.db.doc('students/' + S.sid).update(pd).then(function () { S.patVal = null; say('pat', 'ok', 'コースを「' + PATTERNS[np] + '」にしました。下のリンクを、生徒に送りなおしてください。'); }, function () { say('pat', 'err', '保存できませんでした。もう一度ためしてください。'); }); return;
+    }
+    if (t.closest('[data-basesave]')) { if (S.busy) return; var cs = curTasks(); S.baseAsk = false; S.busy = true; S.msg = null; render(); S.db.doc('students/' + S.sid).update({ base: { at: Date.now(), tasks: cs.map(raw) } }).then(function () { say('base', 'ok', 'いまの時間割を、基本として登録しました。'); }, function () { say('base', 'err', '登録できませんでした。もう一度ためしてください。'); }); return; }
+    if (t.closest('[data-basereset]')) { S.baseAsk = true; S.msg = null; render(); return; }
+    if (t.closest('[data-baseno]')) { S.baseAsk = false; render(); return; }
+    if (t.closest('[data-baseok]')) { if (S.busy) return; var sb2 = S.students[S.sid] && S.students[S.sid].base, bl = (sb2 && sb2.tasks ? normList(sb2.tasks).filter(function (t) { return is24() === (t.koma === 'D' || t.koma === 'E'); }).map(raw) : []); var hadBase = bl.length > 0; if (!hadBase) bl = is24() ? [] : DEFAULT_TASKS.map(function (a) { return raw(toTask(a)); }); S.baseAsk = false; S.editing = null; saveTasks(bl, (hadBase ? '登録した基本の時間割' : (is24() ? '空の時間割' : 'ひな形の時間割')) + 'にもどしました。下のリンクを、生徒に送りなおしてください。', 'base'); return; }
+    if (t.closest('[data-clear]')) { S.clearAsk = true; S.msg = null; render(); return; }
+    if (t.closest('[data-clearno]')) { S.clearAsk = false; render(); return; }
+    if (t.closest('[data-clearok]')) { if (S.busy) return; S.clearAsk = false; S.editing = null; saveTasks([], 'すべての予定を削除しました。下のリンクを、生徒に送りなおしてください。', 'clear'); return; }
+    if (t.closest('[data-save]')) { onSave(); return; }
+    if (t.closest('[data-copy-task]')) { onCopyTask(); return; }
+    if (t.closest('[data-edrep]')) { S.rep.open = !S.rep.open; render(); return; }
+    if ((b = t.closest('[data-repday]'))) { var rd = b.getAttribute('data-repday'); S.rep.days[rd] = !S.rep.days[rd]; render(); return; }
+    if (t.closest('[data-repsave]')) { var ds = Object.keys(S.rep.days).filter(function (d) { return S.rep.days[d]; }).map(Number), ks2 = Object.keys(S.rep.komas || {}).filter(function (k) { return S.rep.komas[k]; }); if (!ds.length && !ks2.length) { S.msg = { where: 'form', kind: 'err', text: 'くり返す曜日かコマを選んでください。' }; render(); return; } onSave(ds, ks2); return; }
+    if ((b = t.closest('[data-eview]'))) { S.eview = b.getAttribute('data-eview'); S.editing = null; S.msg = null; render(); return; }
+    if ((b = t.closest('[data-wadd]'))) { var pr = b.getAttribute('data-wadd').split(':'); S.eday = +pr[0]; S.editing = newDraft(pr[1], +pr[2]); S.msg = null; S.delArm = false; S.rep = { open: false, days: {}, komas: {} }; render(); toForm(); return; }
+    if (t.closest('[data-del]')) { onDelete(); return; }
+    if (t.closest('[data-cancel]')) { S.editing = null; S.delArm = false; S.msg = null; S.rep = { open: false, days: {}, komas: {} }; render(); return; }
+    if ((b = t.closest('[data-openweek]'))) { var k = b.getAttribute('data-openweek'); S.openWeek = S.openWeek === k && b.hasAttribute('aria-expanded') ? null : k; S.msg = null; S.view = 'records'; render(); return; }
+    if ((b = t.closest('[data-grade]'))) { var wk = b.getAttribute('data-wk'), d = S.draft[ek(wk)] || (S.draft[ek(wk)] = {}); d.grade = d.grade === b.getAttribute('data-grade') ? '' : b.getAttribute('data-grade'); render(); return; }
+    if ((b = t.closest('[data-saveeval]'))) { onSaveEval(b.getAttribute('data-saveeval')); return; }
+    if ((b = t.closest('[data-copy]'))) { copyFrom(b); return; }
+    if (t.closest('[data-import]')) { onImport(); return; }
+    if (t.closest('[data-addstu]')) { onAddStudent(); return; }
+    if (t.closest('[data-rename]')) { onRename(); return; }
+    if (t.closest('[data-delstu]')) { onDeleteStudent(); return; }
+    if (t.closest('[data-delstuno]')) { S.delStuArm = false; render(); return; }
+    if (t.closest('[data-saveurl]')) { onSaveUrl(); return; }
+  });
+  app.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (t.id === 'f-label' && S.editing) S.editing.label = t.value;
+    if (t.hasAttribute && t.hasAttribute('data-comment')) { var k = t.getAttribute('data-comment'); (S.draft[ek(k)] || (S.draft[ek(k)] = {})).comment = t.value; var cp = document.getElementById('evc-' + k); if (cp) cp.value = evalText(k); }
+    if (t.id === 'imp') S.importText = t.value;
+    if (t.id === 'nn') S.newName = t.value;
+    if (t.id === 'rn') S.rnVal = t.value;
+    if (t.id === 'uu') S.urlVal = t.value;
+  });
+  app.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.id === 'sidsel') { S.patVal = null; S.patAsk = false; S.baseAsk = false; S.clearAsk = false; S.sid = t.value; lsSet('sid', S.sid); S.editing = null; S.msg = null; S.rnVal = null; S.delStuArm = false; render(); return; }
+    if (t.id === 'pp') { S.patVal = t.value; S.patAsk = false; S.msg = null; render(); return; }
+    if (t.id === 'np') { S.newPat = t.value; S.newFrom = t.value === 'juken' ? 'tpl' : 'empty'; render(); return; }
+    if (t.id === 'impsel') { S.importSid = t.value; render(); return; }
+    if (t.id === 'nf') { S.newFrom = t.value; render(); return; }
+    if (!S.editing) return;
+    if (t.id === 'f-koma') { S.editing.koma = t.value; S.editing.s = 0; if (S.editing.n > 6) S.editing.n = 6; S.msg = null; render(); }
+    if (t.id === 'f-start') { S.editing.s = +t.value; if (S.editing.s + S.editing.n > KOMA[S.editing.koma].slots) S.editing.n = KOMA[S.editing.koma].slots - S.editing.s; S.msg = null; render(); }
+  });
+
+  /* ---------- start ---------- */
+  function fail() { S.unavailable = true; render(); }
+  function init() {
+    if (!window.claude || !window.claude.use) { fail(); return; }
+    Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (r) {
+      var db = r[0], user = r[1];
+      if (!db) { fail(); return; }
+      S.db = db;
+      var pc = user ? user.canEdit() : Promise.resolve(false);
+      pc.then(function (ce) {
+        S.canEdit = !!ce; S.ready = true; render();
+        db.collection('students').onSnapshot(function (q) { var m = {}; q.docs.forEach(function (d) { m[d.id] = d.data(); }); S.students = m; S.studentsDef = !q.metadata.fromCache; render(); }, function () {});
+        db.collection('weeks').onSnapshot(function (q) { var m = {}; q.docs.forEach(function (d) { var x = d.data(); if (x && x.sid) m[d.id] = x; }); S.weeks = m; S.weeksDef = !q.metadata.fromCache; render(); }, function () {});
+        db.collection('evals').onSnapshot(function (q) { var m = {}; q.docs.forEach(function (d) { var x = d.data(); if (x && x.sid) m[d.id] = x; }); S.evals = m; render(); }, function () {});
+        db.doc('config/app').onSnapshot(function (s) { S.appCfg = s.exists ? s.data() : null; render(); }, function () {});
+      });
+    }, fail);
+  }
+  init();
+  setInterval(function () { var k = ymd(mondayOf(new Date())); if (k !== S.key) { S.key = k; render(); } }, 60000);
+})();
+</script>
+
+</body></html>
